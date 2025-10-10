@@ -1,9 +1,30 @@
 @import './base.css';
+@import 'leaflet/dist/leaflet.css';
+
+.info.legend {
+  background: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.2);
+  line-height: 1.5;
+}
+
+.info.legend h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.info.legend i {
+  width: 18px;
+  height: 18px;
+  float: left;
+  margin-right: 8px;
+  opacity: 0.7;
+  border: 1px solid #ccc;
+}
 
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
   font-weight: normal;
 }
 
@@ -21,15 +42,3 @@ a,
   }
 }
 
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
-
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  }
-}
