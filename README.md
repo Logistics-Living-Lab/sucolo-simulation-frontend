@@ -78,8 +78,9 @@ src/
 │   ├── city-selector/        # City and resolution selection
 │   └── profiles/             # Predefined user profiles
 ├── shared/                   # Shared components and utilities
-├── assets/                   # Static assets
-├── utils/                    # Utility functions
+├── composables/              # Reusable Vue composables (e.g. theme)
+├── assets/                   # Static assets (CSS, images)
+├── utils/                    # Utility functions and API helpers
 └── main.js                   # Application entry point
 ```
 
@@ -118,4 +119,55 @@ src/
 - **Use Case**: Population analysis, income distribution, ...
 
 ### Predefined User Profiles
-- Profile 1, 2 and 3
+- Profile 1 to 6
+
+## Scoring Model (API/Backend)
+The scoring is computed in the backend and consumed by the frontend when building the model.
+One score per hexagon (H3) using the selected features is calculated.
+
+### Request Body
+
+- `resolution`: integer
+- `selectedFeatures`: list of feature definitions used for scoring
+- `nearests`: optional list of nearest queries
+- `counts`: optional list of count queries
+- `presences`: optional list of presence queries
+
+Example:
+
+```json
+{
+  "resolution": 10,
+  "selectedFeatures": [
+    {"name": "Free Term", "type": "district", "weight": -0.2},
+    {"name": "education", "type": "nearest", "weight": 0.8},
+    {"name": "station", "type": "present", "weight": 0.4},
+    {"name": "Population density", "type": "district", "weight": 0.6}
+  ],
+  "nearests": [{"amenity": "education", "radius": 500, "penalty": 100}],
+  "presences": [{"amenity": "station", "radius": 200}]
+}
+```
+
+### Response Body
+
+Example:
+
+```json
+{
+  "city": "leipzig",
+  "resolution": 10,
+  "results": [
+    {
+      "hex_id": "8963b10664bffff",
+      "score": 0.58,
+      "features": {
+        "nearest_education": 220,
+        "present_station": 1,
+        "Population density": 378
+      }
+    }
+  ]
+}
+```
+  
