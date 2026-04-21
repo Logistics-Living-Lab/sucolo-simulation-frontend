@@ -5,4 +5,4 @@ export { default as FamilyProfile } from './components/FamilyProfile.vue';
 export { default as StudentProfile } from './components/StudentProfile.vue';
 
 // Constants
-export { Profiles } from './constants/profiles.js'; 
+export { Profiles, getProfilesForCity, PROFILES_BY_CITY } from './constants/profiles.js'; 

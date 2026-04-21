@@ -1,6 +1,7 @@
 <template>
   <div class="feature-selector">
-    <FeatureTypeSelector 
+    <FeatureTypeSelector
+      v-if="expertMode"
       :selectedFeatureType="selectedFeatureType"
       @feature-type-changed="handleFeatureTypeChange"
     />
@@ -25,18 +26,24 @@
       @district-feature-changed="handleDistrictFeatureChange"
     />
 
+    <div v-if="expertMode" class="apply-feature-row mt-2">
+      <button
+        type="button"
+        class="btn btn-primary apply-feature-btn"
+        :disabled="!isValidFeature"
+        :title="applyButtonHint"
+        @click="acceptFeature"
+      >
+        Apply Feature
+      </button>
+    </div>
+
     <FeatureSlider
-      v-if="sliderFeatures.length > 0"
+      v-if="expertMode && sliderFeatures.length > 0"
       :features="sliderFeatures"
       @feature-removed="removeFeature"
       @feature-weight-updated="updateFeatureWeight"
     />
-
-    <div class="d-flex justify-content-between align-items-center mt-3">
-      <button @click="acceptFeature" class="btn btn-primary" :disabled="!isValidFeature">Apply</button>
-      <button @click="buildModel" class="btn btn-primary">Build Model</button>
-      <button @click="resetMap" class="btn btn-danger">Reset</button>
-    </div>
 
     <!-- Error Popup -->
     <div v-if="showErrorPopup" class="error-popup">
@@ -70,11 +77,14 @@ export default {
     selectedCity: {
       type: String,
       required: true
+    },
+    expertMode: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ['update-features', 'build-model', 'reset-map'],
+  emits: ['update-features', 'build-model', 'reset-map', 'action-button-state'],
   setup(props, { emit, expose }) {
-    // Reactive state
     const selectedFeatureType = ref('');
     const selectedAmenity = ref('');
     const selectedDistance = ref(201);
@@ -87,7 +97,6 @@ export default {
     const showErrorPopup = ref(false);
     const errorMessage = ref('');
 
-    // Computed properties
     const isValidFeature = computed(() => {
       if (!selectedFeatureType.value) return false;
       
@@ -102,7 +111,20 @@ export default {
       return false;
     });
 
-    // Methods
+    const canBuildModel = computed(() => sliderFeatures.value.length > 0);
+
+    const applyButtonHint = computed(() => {
+      if (!selectedFeatureType.value) return 'Select a feature type first';
+      if (DYNAMIC_FEATURE_TYPES.includes(selectedFeatureType.value)) {
+        if (!selectedAmenity.value) return 'Select an amenity';
+        if (selectedDistance.value < 201) return 'Set distance to at least 200 m';
+      }
+      if (selectedFeatureType.value === 'district' && !selectedDistrictFeature.value) {
+        return 'Select a district feature';
+      }
+      return '';
+    });
+
     const loadAmenities = async () => {
       try {
         const cityName = getCityName(props.selectedCity);
@@ -122,7 +144,6 @@ export default {
       try {
         const cityName = getCityName(props.selectedCity);
         
-        // First try to get district attributes directly
         try {
           const districtAttributesResponse = await cityApi.getDistrictAttributes(cityName);
           if (districtAttributesResponse && districtAttributesResponse.length > 0) {
@@ -132,8 +153,7 @@ export default {
         } catch (districtError) {
           console.warn('Could not load district attributes, trying hexagons endpoint:', districtError);
         }
-        
-        // Fallback to default resolution
+
         const hexagonsResponse = await cityApi.getHexagons(cityName, 8, []);
         
         if (hexagonsResponse && Object.keys(hexagonsResponse).length > 0) {
@@ -175,6 +195,14 @@ export default {
         featureId = `district_${selectedDistrictFeature.value}`;
       }
 
+      const isDuplicate = sliderFeatures.value.some((f) => f.id === featureId);
+      if (isDuplicate) {
+        showErrorPopup.value = true;
+        errorMessage.value =
+          'This feature is already added.';
+        return;
+      }
+
       const newFeature = {
         id: featureId,
         label: featureLabel,
@@ -189,7 +217,6 @@ export default {
 
       sliderFeatures.value.push(newFeature);
       
-      // Add Free Term
       if (sliderFeatures.value.length === 1) {
         const hasFreeTerm = sliderFeatures.value.some(f => f.id === 'free-term');
         if (!hasFreeTerm) {
@@ -230,7 +257,6 @@ export default {
 
     const emitFeatures = () => {
       const featuresToEmit = sliderFeatures.value.length > 0 ? sliderFeatures.value : {};
-      // Pass empty object if no features, otherwise pass the features array
       emit('update-features', featuresToEmit);
     };
 
@@ -249,7 +275,83 @@ export default {
       window.location.reload();
     };
 
-    // Event handlers
+    const applyProfile = (profile) => {
+      sliderFeatures.value = [];
+
+      if (profile?.districtFeatures) {
+        profile.districtFeatures.forEach((feature) => {
+          selectedFeatureType.value = 'district';
+          selectedDistrictFeature.value = feature.name;
+          acceptFeature();
+
+          const districtFeature = sliderFeatures.value.find(
+            (f) => f.type === 'district' && f.districtFeature === feature.name
+          );
+          if (districtFeature) {
+            districtFeature.weight = feature.weight;
+          }
+        });
+      }
+
+      if (profile?.nearestAmenities) {
+        profile.nearestAmenities.forEach((amenity) => {
+          selectedFeatureType.value = 'nearest';
+          selectedAmenity.value = amenity.name;
+          selectedDistance.value = amenity.distance;
+          selectedPenalty.value = amenity.penalty;
+          acceptFeature();
+
+          const nearestFeature = sliderFeatures.value.find(
+            (f) => f.type === 'nearest' && f.amenity === amenity.name
+          );
+          if (nearestFeature) {
+            nearestFeature.weight = amenity.weight;
+          }
+        });
+      }
+
+      if (profile?.presentAmenities) {
+        profile.presentAmenities.forEach((amenity) => {
+          selectedFeatureType.value = 'present';
+          selectedAmenity.value = amenity.name;
+          selectedDistance.value = amenity.distance;
+          acceptFeature();
+
+          const presentFeature = sliderFeatures.value.find(
+            (f) => f.type === 'present' && f.amenity === amenity.name
+          );
+          if (presentFeature) {
+            presentFeature.weight = amenity.weight;
+          }
+        });
+      }
+
+      if (profile?.countAmenities) {
+        profile.countAmenities.forEach((amenity) => {
+          selectedFeatureType.value = 'count';
+          selectedAmenity.value = amenity.name;
+          selectedDistance.value = amenity.distance;
+          acceptFeature();
+
+          const countFeature = sliderFeatures.value.find(
+            (f) => f.type === 'count' && f.amenity === amenity.name
+          );
+          if (countFeature) {
+            countFeature.weight = amenity.weight;
+          }
+        });
+      }
+
+      if (profile && profile.freeTerm !== undefined) {
+        const freeTermFeature = sliderFeatures.value.find((f) => f.id === 'free-term');
+        if (freeTermFeature) {
+          freeTermFeature.weight = profile.freeTerm;
+        }
+      }
+
+      emitFeatures();
+    };
+
     const handleFeatureTypeChange = (type) => {
       selectedFeatureType.value = type;
       if (type === 'district' && districtFeatures.value.length === 0) {
@@ -275,7 +377,7 @@ export default {
 
     const handleWheelchairChange = (accessible) => {
       wheelchairAccessible.value = accessible;
-      selectedAmenity.value = ''; // Reset amenity when wheelchair preference changes
+      selectedAmenity.value = ''; 
     };
 
     onMounted(() => {
@@ -287,7 +389,6 @@ export default {
       districtFeatures.value = [];
     });
 
-    // Watch sliderFeatures to validate Free Term weight
     watch(sliderFeatures, (newFeatures) => {
       const freeTerm = newFeatures.find(f => f.id === 'free-term');
       if (freeTerm) {
@@ -299,9 +400,17 @@ export default {
       }
     }, { deep: true });
 
+    const emitActionButtonState = () => {
+      emit('action-button-state', {
+        isValidFeature: isValidFeature.value,
+        canBuildModel: canBuildModel.value,
+        applyButtonHint: applyButtonHint.value,
+        buildModelHint: canBuildModel.value ? 'Build the model using current features' : 'Add at least one feature first'
+      });
+    };
+    watch([isValidFeature, canBuildModel, applyButtonHint], emitActionButtonState, { immediate: true });
+    watch(sliderFeatures, emitActionButtonState, { deep: true });
 
-
-    // Expose methods and properties for parent component access
     expose({
       sliderFeatures,
       selectedFeatureType,
@@ -312,7 +421,11 @@ export default {
       wheelchairAccessible,
       acceptFeature,
       emitFeatures,
-      resetInputs
+      resetInputs,
+      resetMap,
+      isValidFeature,
+      canBuildModel,
+      applyProfile
     });
 
     return {
@@ -328,6 +441,8 @@ export default {
       showErrorPopup,
       errorMessage,
       isValidFeature,
+      applyButtonHint,
+      canBuildModel,
       closeErrorPopup,
       acceptFeature,
       buildModel,
@@ -349,31 +464,13 @@ export default {
 
 <style scoped>
 .feature-selector {
-  padding: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 0;
 }
 
-.btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.btn-primary {
-  background-color: #007bff;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-.btn-primary:disabled {
-  background-color: #6c757d;
-  cursor: not-allowed;
+.apply-feature-btn:not(:disabled),
+.build-model-btn:not(:disabled) {
+  box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.35);
+  background-color: #218838;
 }
 
 .btn-danger {
@@ -385,20 +482,23 @@ export default {
   background-color: #c82333;
 }
 
-.d-flex {
+.button-row {
   display: flex;
-}
-
-.justify-content-between {
   justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
 }
 
-.align-items-center {
-  align-items: center;
+.apply-feature-row {
+  margin-top: 0.5rem;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
 }
 
 .mt-3 {
-  margin-top: 1rem;
+  margin-top: 0.75rem;
 }
 
 .error-popup {
@@ -415,7 +515,8 @@ export default {
 }
 
 .error-content {
-  background: white;
+  background: var(--color-background, white);
+  color: var(--color-text, #333);
   padding: 2rem;
   border-radius: 8px;
   text-align: center;

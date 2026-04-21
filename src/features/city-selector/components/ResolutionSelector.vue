@@ -1,6 +1,6 @@
 <template>
   <div class="resolution-selector mt-4">
-    <label>Hexagon Resolution:</label>
+    <label class="section-heading">2. Planning Resolution:</label>
     <select 
       :value="selectedResolution" 
       @change="handleResolutionChange"
@@ -21,6 +21,7 @@
 </template>
 
 <script>
+import { watch, onMounted } from 'vue';
 import { useResolution } from '../composables/useResolution.js';
 
 export default {
@@ -32,13 +33,13 @@ export default {
     }
   },
   setup(props, { emit }) {
-    const { 
+    const {
       selectedResolution,
-      availableResolutions, 
-      isLoading, 
+      availableResolutions,
+      isLoading,
       error,
       setResolution,
-      loadResolutions 
+      loadResolutions
     } = useResolution();
 
     const handleResolutionChange = (event) => {
@@ -46,6 +47,15 @@ export default {
       setResolution(newResolution);
       emit('resolution-changed', newResolution);
     };
+
+    const loadForCity = async () => {
+      if (!props.cityName) return;
+      await loadResolutions(props.cityName);
+      emit('resolution-changed', selectedResolution.value);
+    };
+
+    onMounted(loadForCity);
+    watch(() => props.cityName, loadForCity);
 
     return {
       selectedResolution,
@@ -59,21 +69,31 @@ export default {
 </script>
 
 <style scoped>
+.section-heading {
+  color: var(--color-heading);
+  font-size: 1rem;
+  font-weight: bold;
+}
+
 .resolution-selector {
-  margin-bottom: 1rem;
+  margin-bottom: 0.65rem;
+  padding-top: 1rem;
 }
 
 .form-control {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #ddd;
+  padding: 5px 6px;
+  border: 1px solid var(--color-border, #ddd);
   border-radius: 4px;
-  margin-top: 4px;
+  margin-top: 2px;
+  font-size: 0.875rem;
+  background: var(--color-background, #fff);
+  color: var(--color-text, #333);
 }
 
 .loading-indicator {
   font-size: 0.8rem;
-  color: #666;
+  color: var(--color-text, #666);
   margin-top: 0.25rem;
 }
 

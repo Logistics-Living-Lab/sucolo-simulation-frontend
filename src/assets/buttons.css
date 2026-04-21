@@ -1,0 +1,40 @@
+.btn {
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: inherit;
+  border: none;
+}
+
+.btn-primary {
+  background-color: #28a745;
+  color: #ffffff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.btn-primary:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: #ffffff;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+}
+
+.btn-success {
+  background-color: #4cd964;
+  color: #ffffff;
+}
+
+.btn-success:hover {
+  background-color: #32cd50;
+}

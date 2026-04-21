@@ -1,23 +1,41 @@
 <template>
   <div class="profile-component">
-    <p>Optimized for young working / students</p>
-    <button @click="applyProfile" class="btn btn-primary">Apply Profile 3</button>
+    <p>Optimized for <span class="bold-text">young</span> adults</p>
+    <button
+      @click="applyProfile"
+      class="btn"
+      :class="applied ? 'btn-success' : 'btn-primary'"
+    >
+      {{ applied ? 'Profile applied' : 'Apply Profile 3' }}
+    </button>
   </div>
 </template>
 
 <script>
-import { Profiles } from '../constants/profiles';
+import { ref } from 'vue';
+import { getProfilesForCity } from '../constants/profiles';
 
 export default {
   name: 'StudentProfile',
+  props: {
+    selectedCity: { type: String, default: 'Leipzig, Germany' }
+  },
   emits: ['profile-applied'],
   setup(props, { emit }) {
+    const applied = ref(false);
+
     const applyProfile = () => {
-      const profile = Profiles.STUDENT;
-      emit('profile-applied', profile);
+      const profiles = getProfilesForCity(props.selectedCity);
+      emit('profile-applied', profiles.STUDENT);
+
+      applied.value = true;
+      setTimeout(() => {
+        applied.value = false;
+      }, 1600);
     };
 
     return {
+      applied,
       applyProfile
     };
   }
@@ -26,16 +44,18 @@ export default {
 
 <style scoped>
 .profile-component {
-  padding: 1rem;
-  border: 1px solid #ddd;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border, #ddd);
   border-radius: 4px;
-  margin: 1rem 0;
-  width: 200px;
-  height: 190px;
+  margin: 0.65rem 0;
+  width: 165px;
+  height: 155px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-sizing: border-box;
+  background-color: var(--color-background-mute, #f5f5f5);
+  color: var(--color-text, #333);
 }
 
 .profile-component p {
@@ -43,14 +63,20 @@ export default {
   flex: 1;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  color: var(--color-text, #333);
+}
+
+.bold-text {
+  font-weight: bold;
 }
 
 .btn {
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.75rem;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-weight: 500;
+  font-size: inherit;
 }
 
 .btn-primary {
@@ -60,5 +86,14 @@ export default {
 
 .btn-primary:hover {
   background-color: #0056b3;
+}
+
+.btn-success {
+  background-color: #4cd964;
+  color: white;
+}
+
+.btn-success:hover {
+  background-color: #32cd50;
 }
 </style> 

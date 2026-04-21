@@ -1,6 +1,6 @@
 <template>
   <div class="feature-type-selector">
-    <label for="featureType">Select Type of Feature:</label>
+    <label for="featureType" class="section-heading">3. Select Type of Feature:</label>
     <select 
       id="featureType" 
       :value="selectedFeatureType" 
@@ -39,15 +39,25 @@ export default {
 </script>
 
 <style scoped>
+.section-heading {
+  color: var(--color-heading);
+  font-size: 1rem;
+  font-weight: bold;
+}
+
 .feature-type-selector {
-  margin-bottom: 1rem;
+  margin-bottom: 0.65rem;
+  padding-top: 1rem;
 }
 
 .form-control {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #ddd;
+  padding: 5px 6px;
+  border: 1px solid var(--color-border, #ddd);
   border-radius: 4px;
-  margin-top: 4px;
+  margin-top: 2px;
+  font-size: 0.875rem;
+  background: var(--color-background, #fff);
+  color: var(--color-text, #333);
 }
 </style> 

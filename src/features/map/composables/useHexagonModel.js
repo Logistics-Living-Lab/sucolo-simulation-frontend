@@ -1,6 +1,5 @@
 import { ref } from 'vue';
 import { modelApi } from '../../../utils/api/modelApi';
-import { logisticRegression } from '../../../utils/regression/logisticRegression';
 import { getCityName } from '../../city-selector/constants/cities';
 
 export function useHexagonModel() {
@@ -16,7 +15,6 @@ export function useHexagonModel() {
       return [];
     }
     
-    // Get the list of features that were actually requested
     const requestedFeatures = new Set();
     
     features.forEach(feature => {
@@ -40,22 +38,9 @@ export function useHexagonModel() {
 
     const extractedFeatures = Object.entries(hexData.data)
       .filter(([feature]) => {
-        return requestedFeatures.has(feature) || feature === 'Free Term';
+        return requestedFeatures.has(feature);
       })
       .map(([feature, value]) => {
-        // Special handling for Free Term
-        if (feature === 'Free Term') {
-          const freeTermFeature = features.find(f => f.type === 'free-term');
-          return {
-            name: 'Free Term',
-            label: 'Free Term',
-            value: 1,
-            weight: freeTermFeature ? freeTermFeature.weight : 0,
-            type: 'free-term'
-          };
-        }
-
-        // Find the matching feature by comparing the feature name
         const matchingFeature = features.find(f => {
           if (f.type === 'free-term') return false;
           
@@ -77,7 +62,6 @@ export function useHexagonModel() {
         });
 
         if (!matchingFeature) {
-          console.log(`No matching feature found for: ${feature}`);
           return null;
         }
 
@@ -94,7 +78,6 @@ export function useHexagonModel() {
       })
       .filter(Boolean);
 
-    // add Free Term 
     const freeTermFeature = features.find(f => f.type === 'free-term');
     if (freeTermFeature) {
       extractedFeatures.push({
@@ -109,31 +92,38 @@ export function useHexagonModel() {
     return extractedFeatures;
   };
 
-  const buildQuery = (features, selectedCity, selectedResolution) => {
-    const city = getCityName(selectedCity);
-    
+  const buildLogisticQuery = (features, selectedResolution) => {
     const isWheelchairSelected = Object.entries(features).some(([key, value]) => {
       const isSelected = key.includes('Wheelchair Accessible') && value !== 0;
       return isSelected;
     });
 
     const query = {
+      selectedFeatures: [],
       nearests: [],
       counts: [],
       presences: [],
-      hexagons: { features: [] },
-      resolution: selectedResolution
+      districtFeatureNames: [],
+      resolution: Number(selectedResolution)
     };
 
-    // any district features selected
-    let hasDistrictFeatures = false;
-
     Object.entries(features).forEach(([featureType, featureData]) => {
-      if (featureType === 'Free Term') return;
+      if (featureType === 'Free Term') {
+        query.selectedFeatures.push({
+          name: 'Free Term',
+          type: 'district',
+          weight: featureData
+        });
+        return;
+      }
 
       if (!featureType.includes(' - ')) {
-        query.hexagons.features.push(featureType);
-        hasDistrictFeatures = true;
+        query.selectedFeatures.push({
+          name: featureType,
+          type: 'district',
+          weight: featureData
+        });
+        query.districtFeatureNames.push(featureType);
         return;
       }
 
@@ -152,6 +142,11 @@ export function useHexagonModel() {
 
       switch (type) {
         case 'nearest':
+          query.selectedFeatures.push({
+            name,
+            type: 'nearest',
+            weight: featureData
+          });
           query.nearests.push({
             amenity: name,
             radius: radius,
@@ -159,27 +154,42 @@ export function useHexagonModel() {
           });
           break;
         case 'count':
+          query.selectedFeatures.push({
+            name,
+            type: 'count',
+            weight: featureData
+          });
           query.counts.push({
             amenity: name,
             radius: radius
           });
           break;
         case 'present':
+          query.selectedFeatures.push({
+            name,
+            type: 'present',
+            weight: featureData
+          });
           query.presences.push({
             amenity: name,
             radius: radius
           });
           break;
         case 'district':
-          query.hexagons.features.push(name);
-          hasDistrictFeatures = true;
+          query.selectedFeatures.push({
+            name,
+            type: 'district',
+            weight: featureData
+          });
+          query.districtFeatureNames.push(name);
           break;
       }
     });
 
-    if (!hasDistrictFeatures) {
-      delete query.hexagons;
-    }
+    if (!query.nearests.length) delete query.nearests;
+    if (!query.counts.length) delete query.counts;
+    if (!query.presences.length) delete query.presences;
+    if (!query.districtFeatureNames.length) delete query.districtFeatureNames;
 
     return query;
   };
@@ -190,22 +200,13 @@ export function useHexagonModel() {
     
     try {   
       const city = getCityName(selectedCity);
-      
-      // Check if backend is accessible
-      try {
-        const testResponse = await fetch(`${window.config.apiUrl}/health`);
-      } catch (healthError) {
-        console.warn('Backend health check failed:', healthError);
-      }
-      
-      // Extract features array from featureData object
+          
       const features = featureData.features || featureData;
       
       if (!Array.isArray(features)) {
         throw new Error('Features must be an array');
       }
       
-      // Convert features array to the expected object format
       const featuresObject = {};
       features.forEach(feature => {
         if (feature.type === 'free-term') {
@@ -224,54 +225,36 @@ export function useHexagonModel() {
           featuresObject[key] = feature.weight;
         }
       });
-      
-      console.log('Features object for buildQuery:', featuresObject);
-      const query = buildQuery(featuresObject, selectedCity, selectedResolution);
+
+      const query = buildLogisticQuery(featuresObject, selectedResolution);
       
       let responseData;
       try {
-        responseData = await modelApi.getMultipleFeatures(city, query);
-        console.log('API response data:', responseData);
+        responseData = await modelApi.getLogisticHexagonScores(city, query);
       } catch (apiError) {
-        console.error('API call failed:', apiError);
-        throw new Error(`API call failed: ${apiError.message}`);
+        const status = apiError?.response?.status;
+        const errorData = apiError?.response?.data;
+        const errorMessage = errorData ? JSON.stringify(errorData) : apiError.message;
+        
+        const error = new Error(`API call failed: ${status} ${errorMessage}`);
+        error.statusCode = status;
+        error.originalError = apiError;
+        throw error;
       }
       
       if (!responseData) {
         throw new Error('No response data received from API');
       }
-
-      console.log('Building model with', Object.keys(responseData).length, 'hexagons');
-
-      const hexagonIds = Object.keys(responseData);
-      const newHexagonData = [];
-
-      hexagonIds.forEach((hexId, index) => {
-        try {
-          const data = responseData[hexId];
-          if (!data) {
-            return;
-          }
-
-          const extractedFeatures = extractFeatures({ data }, features);
-          
-          if (!extractedFeatures.length) {
-            console.log(`No features extracted for hexagon ${hexId}`);
-            return;
-          }
-            
-          const score = logisticRegression(extractedFeatures);
-          
-          newHexagonData.push({
-            hexId,
-            score,
-            data,
-            index
-          });
-        } catch (err) {
-          console.error('Error processing hexagon:', err);
-        }
-      });
+      
+      const results = Array.isArray(responseData?.results) ? responseData.results : [];
+      const newHexagonData = results
+        .filter(result => result?.hex_id && typeof result.score === 'number')
+        .map((result, index) => ({
+          hexId: result.hex_id,
+          score: result.score,
+          data: result.features || {},
+          index
+        }));
 
       hexagonData.value = newHexagonData;
       isModelBuilt.value = true;

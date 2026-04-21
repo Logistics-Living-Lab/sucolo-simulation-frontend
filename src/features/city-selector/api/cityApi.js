@@ -11,7 +11,6 @@ export const cityApi = {
         return { status: "unhealthy", error: "Network error" };
       }
       if (error.response && error.response.status === 500) {
-        console.error("Backend health check failed with 500 error");
         return { status: "unhealthy", error: "Server error" };
       }
       console.error("Error checking backend health:", error);

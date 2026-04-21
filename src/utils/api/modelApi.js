@@ -16,8 +16,26 @@ export const modelApi = {
 
       return response.data;
     } catch (error) {
-      return this.handleError(error, 'getMultipleFeatures');
+      throw error;
+    }
+  },
+  async getLogisticHexagonScores(cityName, query) {
+    try {
+      const response = await axios.post(
+        `${window.config.apiUrl}/cities/${cityName}/regression/logistic/hexagons`,
+        query,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      throw error;
     }
   }
 
-}; 
+};

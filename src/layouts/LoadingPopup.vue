@@ -38,17 +38,22 @@ export default {
 }
 
 .loading-content {
-  background-color: white;
+  background-color: var(--color-background, white);
+  color: var(--color-text, #333);
   padding: 20px;
   border-radius: 8px;
   text-align: center;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
+.loading-content p {
+  color: var(--color-text, #333);
+}
+
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #f3f3f3;
+  border: 4px solid var(--color-background-mute, #f3f3f3);
   border-top: 4px solid #3498db;
   border-radius: 50%;
   animation: spin 1s linear infinite;

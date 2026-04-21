@@ -5,8 +5,8 @@
       Wheelchair Accessible
     </label>
 
-    <div class="mt-2">
-      <label>Select Amenity:</label>
+    <div class="mt-2 section-block">
+      <label class="section-heading">4. Select Amenity:</label>
       <select :value="selectedAmenity" @change="handleAmenityChange" class="form-control">
         <option disabled value="">-- Select Amenity --</option>
         <option v-for="amenity in filteredAmenities" :key="amenity" :value="amenity">
@@ -118,19 +118,32 @@ export default {
 </script>
 
 <style scoped>
+.section-heading {
+  color: var(--color-heading);
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.section-block {
+  padding-top: 1rem;
+}
+
 .dynamic-feature-form {
-  margin-bottom: 1rem;
+  margin-bottom: 0.65rem;
 }
 
 .form-control {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #ddd;
+  padding: 5px 6px;
+  border: 1px solid var(--color-border, #ddd);
   border-radius: 4px;
-  margin-top: 4px;
+  margin-top: 2px;
+  font-size: 0.875rem;
+  background: var(--color-background, #fff);
+  color: var(--color-text, #333);
 }
 
 .mt-2 {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 </style> 

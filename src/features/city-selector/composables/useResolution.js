@@ -1,6 +1,21 @@
 import { ref } from 'vue';
-import { DEFAULT_RESOLUTIONS, DEFAULT_RESOLUTION } from '../constants/resolutions';
+import { DEFAULT_RESOLUTIONS, DEFAULT_RESOLUTION, CITY_RESOLUTIONS, CITY_DEFAULT_RESOLUTION } from '../constants/resolutions';
 import { cityApi } from '../api/cityApi';
+
+const RESOLUTION_LABELS = Object.fromEntries(
+  DEFAULT_RESOLUTIONS.map((r) => [r.value, { label: r.label, description: r.description }])
+);
+
+function resolutionsToOptions(values) {
+  return values.map((value) => {
+    const meta = RESOLUTION_LABELS[value];
+    return {
+      value,
+      label: meta ? meta.label : `Resolution ${value}`,
+      description: meta ? meta.description : `${value} hexagons`,
+    };
+  });
+}
 
 export function useResolution() {
   const selectedResolution = ref(DEFAULT_RESOLUTION);
@@ -9,32 +24,50 @@ export function useResolution() {
   const error = ref(null);
 
   const setResolution = (resolution) => {
-    if (availableResolutions.value.some(r => r.value === resolution)) {
+    if (availableResolutions.value.some((r) => r.value === resolution)) {
       selectedResolution.value = resolution;
     }
   };
 
   const loadResolutions = async (cityName) => {
+    if (!cityName) {
+      availableResolutions.value = DEFAULT_RESOLUTIONS;
+      return;
+    }
+    const cityValues = CITY_RESOLUTIONS[cityName];
+    if (cityValues && cityValues.length > 0) {
+      availableResolutions.value = resolutionsToOptions(cityValues);
+      const defaultRes = CITY_DEFAULT_RESOLUTION[cityName];
+      const effectiveDefault = defaultRes !== undefined && cityValues.includes(defaultRes)
+        ? defaultRes
+        : cityValues[0];
+      selectedResolution.value = effectiveDefault;
+      return;
+    }
     isLoading.value = true;
     error.value = null;
-    
     try {
       const resolutions = await cityApi.getResolutions(cityName);
       if (resolutions && Array.isArray(resolutions) && resolutions.length > 0) {
-        // Convert backend resolution format to frontend format if needed
-        availableResolutions.value = resolutions.map(res => {
+        availableResolutions.value = resolutions.map((res) => {
           if (typeof res === 'number') {
-            // If backend returns just numbers, convert to our format
+            const meta = RESOLUTION_LABELS[res];
             return {
               value: res,
-              label: `Resolution ${res}`,
-              description: `${res}km hexagons`
+              label: meta ? meta.label : `Resolution ${res}`,
+              description: meta ? meta.description : `${res}km hexagons`,
             };
           }
-          return res; // Assume backend returns proper format
+          return res;
         });
+        const values = availableResolutions.value.map((r) => r.value);
+        const defaultRes = CITY_DEFAULT_RESOLUTION[cityName];
+        if (defaultRes !== undefined && values.includes(defaultRes)) {
+          selectedResolution.value = defaultRes;
+        } else if (!values.includes(selectedResolution.value)) {
+          selectedResolution.value = values[0];
+        }
       } else {
-        console.warn(`No resolutions available for ${cityName}, using defaults`);
         availableResolutions.value = DEFAULT_RESOLUTIONS;
       }
     } catch (err) {

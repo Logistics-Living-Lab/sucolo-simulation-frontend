@@ -1,12 +1,13 @@
 <template>
   <div class="profile-component">
-    <p>Optimized for <span class="bold-text">accessibility</span> needs</p>
+    <p>{{ description }}</p>
     <button
+      type="button"
       @click="applyProfile"
       class="btn"
       :class="applied ? 'btn-success' : 'btn-primary'"
     >
-      {{ applied ? 'Profile applied' : 'Apply Profile 1' }}
+      {{ applied ? 'Profile applied' : `Apply Profile ${index}` }}
     </button>
   </div>
 </template>
@@ -16,9 +17,28 @@ import { ref } from 'vue';
 import { getProfilesForCity } from '../constants/profiles';
 
 export default {
-  name: 'RetireeProfile',
+  name: 'ProfileCard',
   props: {
-    selectedCity: { type: String, default: 'Leipzig, Germany' }
+    selectedCity: {
+      type: String,
+      default: 'Leipzig, Germany'
+    },
+    label: {
+      type: String,
+      required: true
+    },
+    description: {
+      type: String,
+      required: true
+    },
+    profileKey: {
+      type: String,
+      required: true
+    },
+    index: {
+      type: Number,
+      required: true
+    }
   },
   emits: ['profile-applied'],
   setup(props, { emit }) {
@@ -26,7 +46,10 @@ export default {
 
     const applyProfile = () => {
       const profiles = getProfilesForCity(props.selectedCity);
-      emit('profile-applied', profiles.RETIREE);
+      const profile = profiles?.[props.profileKey];
+      if (!profile) return;
+
+      emit('profile-applied', profile);
 
       applied.value = true;
       setTimeout(() => {
@@ -65,35 +88,4 @@ export default {
   overflow-wrap: break-word;
   color: var(--color-text, #333);
 }
-
-.bold-text {
-  font-weight: bold;
-}
-
-.btn {
-  padding: 0.4rem 0.75rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: inherit;
-}
-
-.btn-primary {
-  background-color: #007bff;
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: #0056b3;
-}
-
-.btn-success {
-  background-color: #4cd964;
-  color: white;
-}
-
-.btn-success:hover {
-  background-color: #32cd50;
-}
-</style> 
+</style>

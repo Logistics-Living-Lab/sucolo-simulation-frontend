@@ -1,12 +1,12 @@
 <template>
   <div class="profile-component">
-    <p>Optimized for <span class="bold-text">accessibility</span> needs</p>
+    <p>Optimized for <span class="bold-text">mobility hubs</span></p>
     <button
       @click="applyProfile"
       class="btn"
       :class="applied ? 'btn-success' : 'btn-primary'"
     >
-      {{ applied ? 'Profile applied' : 'Apply Profile 1' }}
+      {{ applied ? 'Profile applied' : 'Apply Profile 6' }}
     </button>
   </div>
 </template>
@@ -16,7 +16,7 @@ import { ref } from 'vue';
 import { getProfilesForCity } from '../constants/profiles';
 
 export default {
-  name: 'RetireeProfile',
+  name: 'MobilityHubProfile',
   props: {
     selectedCity: { type: String, default: 'Leipzig, Germany' }
   },
@@ -26,7 +26,7 @@ export default {
 
     const applyProfile = () => {
       const profiles = getProfilesForCity(props.selectedCity);
-      emit('profile-applied', profiles.RETIREE);
+      emit('profile-applied', profiles.MOBILITY_HUB);
 
       applied.value = true;
       setTimeout(() => {
@@ -96,4 +96,4 @@ export default {
 .btn-success:hover {
   background-color: #32cd50;
 }
-</style> 
+</style>
